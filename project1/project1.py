@@ -5,6 +5,7 @@ import scipy as sc
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import time
 
 
 def write_gph(dag, idx2names, filename):
@@ -76,10 +77,12 @@ def fit(method,vars,D):
     G.add_nodes_from(method.ordering) # starts graph with a node for every variable, ie nodes 0 to n-1
     # for (k,i) in enumerate(method.ordering[1:]):
     for k in method.ordering[1:]:
-        i = k
-        print("For this loop: ")
         print("k: ", k)
-        print("i: ", i)
+        i = k
+        n_parents = 0
+        # print("For this loop: ")
+        # print("k: ", k)
+        # print("i: ", i)
         y = bayes_score(vars,G,D) # Bayes score of current graph
         while True:
             y_best,j_best = -np.inf,0
@@ -87,20 +90,25 @@ def fit(method,vars,D):
                 if not G.has_edge(j,i): # if this edge doesn't exist
                     G.add_edge(j,i)
                     yprime = bayes_score(vars,G,D) # Bayes score of graph with added edge
-                    print("Bscore: ", yprime)
+                    # print("Bscore: ", yprime)
                     if yprime > y_best: #and nx.is_directed_acyclic_graph(G): # If added edge is the best
                         y_best,j_best = yprime,j # Keep track of it
                     G.remove_edge(j,i) # Remove so we can test the next edge
             if y_best > y: # If the best edge was better than before
                 y = y_best # Update
                 G.add_edge(j_best,i) # Add the best edge
+                n_parents += 1
             else: # If best edge was worse
                 break # Break out of loop for this k
+            if n_parents > 10: # if there are 11 or more parents
+                break
+    print("Bscore: ", y)
     return G
 
 
 
 def compute(infile, outfile):
+    start = time.time()
     # G = nx.DiGraph()
     # vars = [0,1,2]
 
@@ -128,17 +136,19 @@ def compute(infile, outfile):
     D = pd.read_csv(infile)
     vars = list(D)
     D = np.array(D)
-    print("D: ", D)
-    print("vars: ",vars)
+    # print("D: ", D)
+    # print("vars: ",vars)
     method = K2Search(np.arange(len(vars)))
-    print("Ordering: ", method.ordering)
+    # print("Ordering: ", method.ordering)
     G = fit(method,vars,D)
     varlist = dict(zip(method.ordering,vars))
-    print("List: ", varlist)
+    # print("List: ", varlist)
     print("G: ", G)
     write_gph(G,varlist,outfile)
     nx.draw(G, labels=varlist,with_labels=True, font_weight='bold',pos=nx.circular_layout(G))
     plt.savefig(outfile[:-4] + ".png")
+    total_time = time.time() - start
+    print("Total time: ", total_time)
 
 
 
